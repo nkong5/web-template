@@ -730,7 +730,7 @@ class EditListingWizard extends Component {
               onScroll={e => {
                 const el = e.target;
                 const atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 10;
-                
+
                 console.log('scrollHeight:', el.scrollHeight, 'scrollTop:', el.scrollTop, 'clientHeight:', el.clientHeight, 'atBottom:', atBottom);
 
                 if (atBottom) {
@@ -889,7 +889,7 @@ class EditListingWizard extends Component {
           </div>
         </Modal>
 
-        {/* Payout Modal */}  
+        {/* Payout Modal */}
         <Modal
           id="EditListingWizard.payoutModal"
           isOpen={this.state.showPayoutDetails}
