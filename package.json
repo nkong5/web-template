@@ -59,6 +59,7 @@
     "smoothscroll-polyfill": "^0.4.0",
     "source-map-support": "^0.5.21",
     "to-fast-properties": "2.0.0",
+    "stripe": "^22.0.2",
     "unified": "^9.2.2"
   },
   "devDependencies": {
@@ -71,8 +72,10 @@
     "concurrently": "^9.2.1",
     "cross-env": "10.1.0",
     "inquirer": "^8.2.6",
+    "jest-junit": "^17.0.0",
     "nodemon": "^3.1.11",
-    "prettier": "^1.18.2"
+    "prettier": "^1.18.2",
+    "puppeteer": "^24.42.0"
   },
   "resolutions": {
     "sharetribe-scripts/webpack-dev-server/express/path-to-regexp": "0.1.12",
