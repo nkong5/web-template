@@ -1,54 +1,60 @@
 import React from 'react';
 import { useIntl } from '../../util/reactIntl';
 
+// ─── Amenity groups (must match configListing.js) ───────────────────────────
+
 const REQUIRED_AMENITIES = [
-  { key: 'security-24hr', label: '24-hour manned security' },
-  { key: 'perimeter-wall', label: 'Perimeter wall + solid gate' },
-  { key: 'alarm-panic', label: 'Alarm system + panic button' },
-  { key: 'cctv', label: 'CCTV cameras' },
-  { key: 'water-storage', label: 'Water storage tank / borehole' },
-  { key: 'wifi', label: 'WiFi' },
-  { key: 'secure-parking', label: 'Secure parking (min. 1 space)' },
-  { key: 'kitchen', label: 'Kitchen' },
+  { key: 'security-24hr',   label: '24-hour manned security' },
+  { key: 'perimeter-wall',  label: 'Perimeter wall + solid gate' },
+  { key: 'alarm-panic',     label: 'Alarm system + panic button' },
+  { key: 'cctv',            label: 'CCTV cameras' },
+  { key: 'water-storage',   label: 'Water storage tank / borehole' },
+  { key: 'wifi',            label: 'WiFi' },
+  { key: 'secure-parking',  label: 'Secure parking (min. 1 space)' },
+  { key: 'kitchen',         label: 'Kitchen' },
   { key: 'washing-machine', label: 'Washing machine' },
-  { key: 'concierge', label: 'Concierge or estate management' },
+  { key: 'concierge',       label: 'Concierge or estate management' },
+  { key: 'hot-water',       label: 'Hot water supply' },
+  { key: 'furnished',       label: 'Fully furnished' },
 ];
 
 const PREMIUM_AMENITIES = [
-  { key: 'generator', label: 'Backup generator or solar' },
-  { key: 'pool', label: 'Swimming pool' },
-  { key: 'gym', label: 'Gym / fitness centre' },
-  { key: 'rooftop', label: 'Rooftop or outdoor common area' },
-  { key: 'balcony', label: 'Private patio or balcony' },
+  { key: 'generator', label: 'Backup generator or power' },
+  { key: 'pool',      label: 'Swimming pool' },
+  { key: 'gym',       label: 'Gym / fitness centre' },
+  { key: 'rooftop',   label: 'Rooftop or outdoor common area' },
+  { key: 'balcony',   label: 'Private patio or balcony' },
+  { key: 'cleaning',  label: 'Weekly cleaning service' },
+  { key: 'tv',        label: 'Smart TV' },
 ];
 
 const OPTIONAL_AMENITIES = [
-  { key: 'hot-water', label: 'Hot water supply' },
-  { key: 'tv', label: 'TV' },
-  { key: 'furnished', label: 'Fully furnished' },
   { key: 'pet-friendly', label: 'Pet-friendly' },
+  { key: 'ac',           label: 'Air conditioning' },
+  { key: 'workspace',    label: 'Dedicated workspace' },
 ];
 
+// ─── Legacy key migration ────────────────────────────────────────────────────
+
 const OLD_KEY_MAP = {
-  'free-parking': 'secure-parking',
+  'free-parking':        'secure-parking',
   'shared-outdoor-pool': 'pool',
-  'washer': 'washing-machine',
-  'balcony': 'balcony',
-  'security': 'security-24hr',
+  'washer':              'washing-machine',
+  'security':            'security-24hr',
 };
 
 const normalizeAmenities = amenities =>
   amenities.map(k => OLD_KEY_MAP[k] || k).filter(Boolean);
 
+// ─── Icons ───────────────────────────────────────────────────────────────────
+
 const ICONS = {
-  // Shield - navy blue
   'security-24hr': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#1a3c6e" strokeWidth="1.6" fill="#dbe9ff"/>
       <polyline points="9 12 11 14 15 10" stroke="#1a3c6e" strokeWidth="1.6"/>
     </svg>
   ),
-  // Gate - brown/stone
   'perimeter-wall': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="11" width="18" height="10" rx="1" stroke="#7c5c3e" strokeWidth="1.6" fill="#f5e6d3"/>
@@ -56,7 +62,6 @@ const ICONS = {
       <rect x="9" y="14" width="6" height="7" rx="1" stroke="#7c5c3e" strokeWidth="1.4" fill="#e8d5c0"/>
     </svg>
   ),
-  // Bell - amber/orange
   'alarm-panic': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#d97706" strokeWidth="1.6" fill="#fef3c7"/>
@@ -64,7 +69,6 @@ const ICONS = {
       <circle cx="12" cy="6" r="1" fill="#d97706"/>
     </svg>
   ),
-  // Camera - dark grey/charcoal
   'cctv': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <rect x="1" y="5" width="15" height="14" rx="2" stroke="#374151" strokeWidth="1.6" fill="#e5e7eb"/>
@@ -72,13 +76,11 @@ const ICONS = {
       <circle cx="8" cy="12" r="2" stroke="#374151" strokeWidth="1.4" fill="#9ca3af"/>
     </svg>
   ),
-  // Water drop - blue
   'water-storage': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" stroke="#0369a1" strokeWidth="1.6" fill="#bae6fd"/>
     </svg>
   ),
-  // WiFi - sky blue
   'wifi': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke="#0284c7" strokeWidth="1.6"/>
@@ -87,14 +89,12 @@ const ICONS = {
       <circle cx="12" cy="20" r="1.2" fill="#0284c7"/>
     </svg>
   ),
-  // Parking sign - blue
   'secure-parking': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="3" stroke="#1d4ed8" strokeWidth="1.6" fill="#dbeafe"/>
       <path d="M9 17V7h4a3 3 0 0 1 0 6H9" stroke="#1d4ed8" strokeWidth="1.6"/>
     </svg>
   ),
-  // Pot/mug - warm orange
   'kitchen': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8h1a4 4 0 0 1 0 8h-1" stroke="#ea580c" strokeWidth="1.6"/>
@@ -104,7 +104,6 @@ const ICONS = {
       <line x1="14" y1="1" x2="14" y2="4" stroke="#ea580c" strokeWidth="1.6"/>
     </svg>
   ),
-  // Washing machine - teal
   'washing-machine': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="2" width="20" height="20" rx="2" stroke="#0d9488" strokeWidth="1.6" fill="#ccfbf1"/>
@@ -113,20 +112,31 @@ const ICONS = {
       <circle cx="6.5" cy="6.5" r="1" fill="#0d9488"/>
     </svg>
   ),
-  // Building - purple
   'concierge': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="#7c3aed" strokeWidth="1.6" fill="#ede9fe"/>
       <polyline points="9 22 9 12 15 12 15 22" stroke="#7c3aed" strokeWidth="1.6"/>
     </svg>
   ),
-  // Lightning - yellow
+  'hot-water': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" stroke="#f97316" strokeWidth="1.6" fill="#fed7aa"/>
+      <path d="M12 12c0 2 1.5 3 1.5 4.5a1.5 1.5 0 0 1-3 0C10.5 15 12 14 12 12z" stroke="#f97316" strokeWidth="1.4" fill="#fb923c"/>
+    </svg>
+  ),
+  'furnished': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2" stroke="#92400e" strokeWidth="1.6"/>
+      <path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z" stroke="#92400e" strokeWidth="1.6" fill="#fef3c7"/>
+      <line x1="6" y1="18" x2="6" y2="21" stroke="#92400e" strokeWidth="1.6"/>
+      <line x1="18" y1="18" x2="18" y2="21" stroke="#92400e" strokeWidth="1.6"/>
+    </svg>
+  ),
   'generator': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke="#ca8a04" strokeWidth="1.6" fill="#fef08a"/>
     </svg>
   ),
-  // Pool waves - cyan/blue
   'pool': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 20c2 0 4-2 6-2s4 2 6 2 4-2 6-2" stroke="#0891b2" strokeWidth="1.6"/>
@@ -135,7 +145,6 @@ const ICONS = {
       <path d="M10 8h4l2 4" stroke="#0891b2" strokeWidth="1.6"/>
     </svg>
   ),
-  // Dumbbell - red
   'gym': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 4v16" stroke="#dc2626" strokeWidth="1.6"/>
@@ -145,7 +154,6 @@ const ICONS = {
       <path d="M6 12h12" stroke="#dc2626" strokeWidth="2"/>
     </svg>
   ),
-  // Terrace/sun - warm amber
   'rooftop': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="#b45309" strokeWidth="1.6" fill="#fef3c7"/>
@@ -153,7 +161,6 @@ const ICONS = {
       <path d="M9 22v-4h6v4" stroke="#b45309" strokeWidth="1.4"/>
     </svg>
   ),
-  // Balcony/door - green
   'balcony': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" stroke="#15803d" strokeWidth="1.6" fill="#dcfce7"/>
@@ -162,14 +169,14 @@ const ICONS = {
       <path d="M15 22v-12" stroke="#15803d" strokeWidth="1.4"/>
     </svg>
   ),
-  // Flame/hot - orange-red
-  'hot-water': (
+  'cleaning': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" stroke="#f97316" strokeWidth="1.6" fill="#fed7aa"/>
-      <path d="M12 12c0 2 1.5 3 1.5 4.5a1.5 1.5 0 0 1-3 0C10.5 15 12 14 12 12z" stroke="#f97316" strokeWidth="1.4" fill="#fb923c"/>
+      <path d="M3 21l9-9" stroke="#0284c7" strokeWidth="1.6"/>
+      <path d="M12.22 6.22L15 9 9 15l-2.78-2.78A4 4 0 0 1 12.22 6.22z" stroke="#0284c7" strokeWidth="1.6" fill="#bae6fd"/>
+      <path d="M15 9l2-2a2 2 0 1 0-2.83-2.83L12 6" stroke="#0284c7" strokeWidth="1.6"/>
+      <path d="M5 19l2-2" stroke="#0284c7" strokeWidth="1.6"/>
     </svg>
   ),
-  // TV - indigo
   'tv': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="7" width="20" height="13" rx="2" stroke="#4338ca" strokeWidth="1.6" fill="#e0e7ff"/>
@@ -177,16 +184,6 @@ const ICONS = {
       <line x1="8" y1="21" x2="16" y2="21" stroke="#4338ca" strokeWidth="1.6"/>
     </svg>
   ),
-  // Sofa - warm brown
-  'furnished': (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2" stroke="#92400e" strokeWidth="1.6"/>
-      <path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z" stroke="#92400e" strokeWidth="1.6" fill="#fef3c7"/>
-      <line x1="6" y1="18" x2="6" y2="21" stroke="#92400e" strokeWidth="1.6"/>
-      <line x1="18" y1="18" x2="18" y2="21" stroke="#92400e" strokeWidth="1.6"/>
-    </svg>
-  ),
-  // Paw - pink
   'pet-friendly': (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <ellipse cx="6" cy="6" rx="1.5" ry="2" stroke="#db2777" strokeWidth="1.4" fill="#fce7f3"/>
@@ -196,7 +193,26 @@ const ICONS = {
       <path d="M12 22c-4 0-7-3-7-6 0-2 1.5-3.5 3.5-3.5.8 0 1.5.2 2.1.6L12 14l1.4-.9c.6-.4 1.3-.6 2.1-.6C17.5 12.5 19 14 19 16c0 3-3 6-7 6z" stroke="#db2777" strokeWidth="1.4" fill="#fce7f3"/>
     </svg>
   ),
+  'ac': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="2" x2="12" y2="22" stroke="#38bdf8" strokeWidth="1.6"/>
+      <line x1="2" y1="12" x2="22" y2="12" stroke="#38bdf8" strokeWidth="1.6"/>
+      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke="#38bdf8" strokeWidth="1.6"/>
+      <line x1="19.07" y1="4.93" x2="4.93" y2="19.07" stroke="#38bdf8" strokeWidth="1.6"/>
+      <circle cx="12" cy="12" r="3" stroke="#38bdf8" strokeWidth="1.4" fill="#e0f2fe"/>
+    </svg>
+  ),
+  'workspace': (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" stroke="#475569" strokeWidth="1.6" fill="#f1f5f9"/>
+      <line x1="8" y1="21" x2="16" y2="21" stroke="#475569" strokeWidth="1.6"/>
+      <line x1="12" y1="17" x2="12" y2="21" stroke="#475569" strokeWidth="1.6"/>
+      <rect x="5" y="6" width="14" height="8" rx="1" stroke="#475569" strokeWidth="1.4" fill="#e2e8f0"/>
+    </svg>
+  ),
 };
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
 const AmenityGroup = ({ title, amenities, selected }) => {
   const selectedInGroup = amenities.filter(a => selected.includes(a.key));
@@ -241,6 +257,8 @@ const AmenityGroup = ({ title, amenities, selected }) => {
   );
 };
 
+// ─── Main export ─────────────────────────────────────────────────────────────
+
 const SectionAmenities = ({ publicData }) => {
   const intl = useIntl();
   const amenities = normalizeAmenities(publicData?.amenities || []);
@@ -251,8 +269,8 @@ const SectionAmenities = ({ publicData }) => {
       <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a', margin: '0 0 20px 0' }}>
         {intl.formatMessage({ id: 'ListingPage.amenitiesTitle', defaultMessage: 'Amenities' })}
       </h2>
-      <AmenityGroup title="UN-Grade Essentials" amenities={REQUIRED_AMENITIES} selected={amenities} />
-      <AmenityGroup title="Premium Amenities" amenities={PREMIUM_AMENITIES} selected={amenities} />
+      <AmenityGroup title="UN-Grade Essentials"  amenities={REQUIRED_AMENITIES} selected={amenities} />
+      <AmenityGroup title="Premium Amenities"    amenities={PREMIUM_AMENITIES}  selected={amenities} />
       <AmenityGroup title="Additional Amenities" amenities={OPTIONAL_AMENITIES} selected={amenities} />
     </div>
   );
