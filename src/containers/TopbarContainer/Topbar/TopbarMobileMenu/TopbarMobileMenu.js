@@ -102,38 +102,22 @@ const TopbarMobileMenu = props => {
   ) : null;
 
   if (!isAuthenticated) {
-    const signup = (
-      <NamedLink name="SignupPage" className={css.signupLink}>
-        <FormattedMessage id="TopbarMobileMenu.signupLink" />
-      </NamedLink>
-    );
-
-    const login = (
-      <NamedLink name="LoginPage" className={css.loginLink}>
-        <FormattedMessage id="TopbarMobileMenu.loginLink" />
-      </NamedLink>
-    );
-
-    const signupOrLogin = (
-      <span className={css.authenticationLinks}>
-        <FormattedMessage
-          id="TopbarMobileMenu.signupOrLogin"
-          values={{ lineBreak: <br />, signup, login }}
-        />
-      </span>
-    );
     return (
       <nav className={css.root}>
         <div className={css.content}>
-          <div className={css.authenticationGreeting}>
-            <FormattedMessage
-              id="TopbarMobileMenu.unauthorizedGreeting"
-              values={{ lineBreak: <br />, signupOrLogin }}
-            />
-          </div>
-
-          <ul className={css.customLinksWrapper}>{extraLinks}</ul>
-
+          <ul className={css.customLinksWrapper}>
+            <li className={css.navigationLink}>
+              <NamedLink name="SignupPage" className={css.signupLink}>
+                <FormattedMessage id="TopbarMobileMenu.signupLink" />
+              </NamedLink>
+            </li>
+            <li className={css.navigationLink}>
+              <NamedLink name="LoginPage" className={css.loginLink}>
+                <FormattedMessage id="TopbarMobileMenu.loginLink" />
+              </NamedLink>
+            </li>
+            {extraLinks}
+          </ul>
           <div className={css.spacer} />
         </div>
         <div className={css.footer}>{createListingsLinkMaybe}</div>
