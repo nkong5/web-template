@@ -16,12 +16,9 @@ import { parse } from '../../util/urlHelpers';
 
 import { addMarketplaceEntities } from '../../ducks/marketplaceData.duck';
 
-// Pagination page size might need to be dynamic on responsive page layouts
-// Current design has max 3 columns 12 is divisible by 2 and 3
-// So, there's enough cards to fill all columns on full pagination pages
+
 const RESULT_PAGE_SIZE = 24;
 
-// ================ Helper Functions ================ //
 
 const resultIds = data => {
   const listings = data.data;
@@ -30,34 +27,125 @@ const resultIds = data => {
     .map(l => l.id);
 };
 
-// ================ Async Thunks ================ //
 
-/////////////////////
-// Search Listings //
-/////////////////////
+/**
+ * FIXED: Filter listings by date overlap with search range
+ * Shows listings where ANY part of their availability overlaps with search dates
+ */
+const filterListingsByDateOverlap = (listings, searchParams) => {
+  if (!searchParams || !searchParams.dates) {
+    return listings;
+  }
+
+  const dateValues = searchParams.dates.split(',');
+  if (dateValues.length !== 2) {
+    return listings;
+  }
+
+  try {
+    const [startStr, endStr] = dateValues;
+    const searchTZ = 'Etc/UTC';
+
+    const searchStart = parseDateFromISO8601(startStr, searchTZ);
+    const searchEnd = parseDateFromISO8601(endStr, searchTZ);
+
+    if (!searchStart || !searchEnd) {
+      return listings;
+    }
+
+    const searchStartTs = searchStart.getTime();
+    const searchEndTs = searchEnd.getTime();
+
+    return listings.filter(listing => {
+      if (!listing || !listing.attributes) {
+        return false;
+      }
+
+      const attributes = listing.attributes;
+
+      // Check custom timeSlots (your system)
+      if (attributes.timeSlots && Array.isArray(attributes.timeSlots)) {
+        const hasOverlap = attributes.timeSlots.some(slot => {
+          if (!slot || !slot.attributes) return false;
+          const slotStart = new Date(slot.attributes.start).getTime();
+          const slotEnd = new Date(slot.attributes.end).getTime();
+          // OVERLAP CHECK: searchStart <= slotEnd AND searchEnd >= slotStart
+          return searchStartTs <= slotEnd && searchEndTs >= slotStart;
+        });
+        return hasOverlap;
+      }
+
+      // Fallback: Check standard Sharetribe availabilityPlan
+      if (attributes.availabilityPlan) {
+        const { exceptions } = attributes.availabilityPlan;
+        if (!exceptions || !Array.isArray(exceptions) || exceptions.length === 0) {
+          return true;
+        }
+        const isCompletelyBlocked = isSearchRangeCompletelyBlocked(
+          searchStartTs,
+          searchEndTs,
+          exceptions
+        );
+        return !isCompletelyBlocked;
+      }
+
+      return true;
+    });
+  } catch (error) {
+    console.warn('Error filtering listings by date overlap:', error);
+    return listings;
+  }
+};
+
+
+const isSearchRangeCompletelyBlocked = (searchStartTs, searchEndTs, exceptions) => {
+  if (!exceptions || exceptions.length === 0) {
+    return false;
+  }
+
+  const sortedExceptions = exceptions
+    .filter(e => e && e.attributes)
+    .map(e => ({
+      start: new Date(e.attributes.start).getTime(),
+      end: new Date(e.attributes.end).getTime(),
+    }))
+    .sort((a, b) => a.start - b.start);
+
+  if (sortedExceptions.length === 0) {
+    return false;
+  }
+
+  let currentPos = searchStartTs;
+
+  for (const exception of sortedExceptions) {
+    if (exception.start > currentPos) {
+      return false;
+    }
+
+    currentPos = Math.max(currentPos, exception.end);
+
+    if (currentPos >= searchEndTs) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
   const { dispatch, rejectWithValue, extra: sdk } = thunkAPI;
-  // SearchPage can enforce listing query to only those listings with valid listingType
-  // NOTE: this only works if you have set 'enum' type search schema to listing's public data fields
-  //       - listingType
-  //       Same setup could be expanded to 2 other extended data fields:
-  //       - transactionProcessAlias
-  //       - unitType
-  //       ...and then turned enforceValidListingType config to true in configListing.js
-  // Read More:
-  // https://www.sharetribe.com/docs/how-to/manage-search-schemas-with-flex-cli/#adding-listing-search-schemas
+
   const searchValidListingTypes = (listingTypes, listingTypePathParam, isListingTypeVariant) => {
     return isListingTypeVariant
       ? {
-          pub_listingType: listingTypePathParam,
-        }
+        pub_listingType: listingTypePathParam,
+      }
       : config.listing.enforceValidListingType
-      ? {
+        ? {
           pub_listingType: listingTypes.map(l => l.listingType),
-          // pub_transactionProcessAlias: listingTypes.map(l => l.transactionType.alias),
-          // pub_unitType: listingTypes.map(l => l.transactionType.unitType),
+
         }
-      : {};
+        : {};
   };
 
   const constructCategoryPropertiesForAPI = (queryParamPrefix, categories, level, params) => {
@@ -66,15 +154,14 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
       typeof params?.[levelKey] !== 'undefined' ? `${params?.[levelKey]}` : undefined;
     const foundCategory = categories.find(cat => cat.id === levelValue);
     const subcategories = foundCategory?.subcategories || [];
-    // Note: we might need to prepare nested categories too: categoryLevel1, categoryLevel2, categoryLevel3
     return foundCategory && subcategories.length > 0
       ? {
-          [levelKey]: levelValue,
-          ...constructCategoryPropertiesForAPI(queryParamPrefix, subcategories, level + 1, params),
-        }
+        [levelKey]: levelValue,
+        ...constructCategoryPropertiesForAPI(queryParamPrefix, subcategories, level + 1, params),
+      }
       : foundCategory
-      ? { [levelKey]: levelValue }
-      : {};
+        ? { [levelKey]: levelValue }
+        : {};
   };
 
   /**
@@ -98,12 +185,10 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
   const constructIntegerRangePropertyForAPI = (queryParamPrefix, params) => {
     const integerValue = params?.[queryParamPrefix];
     const [min, max] = integerValue ? integerValue.split(',') : [];
-    // NOTE: long filter needs exclusive max value on API side
     const inclusiveMin = Number.parseInt(min, 10);
     const exclusiveMax = Number.parseInt(max, 10) + 1;
 
-    // NOTE: currently we don't validate the range values against the integer range config,
-    // but we might want to do that in the future.
+
 
     return Number.isInteger(inclusiveMin) && Number.isInteger(exclusiveMax)
       ? { [queryParamPrefix]: [inclusiveMin, exclusiveMax].join(',') }
@@ -131,16 +216,13 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
       : {};
   };
 
-  // This function goes through given params and if there's a specific handler for the parameter type,
-  // it calls the handler to prepare the property for API.
-  // Otherwise, it just passes the param through.
+
   const prepareAPIParams = (params, paramHandlers) => {
     const pickedKeys = Object.entries(params).reduce((picked, [k, v]) => {
       const preparedParams = paramHandlers.reduce((picked, fn) => {
         return { ...picked, ...fn(k, params) };
       }, {});
 
-      // If the param is not handled by any of the handlers, we pass it through.
       const currentParam = Object.keys(preparedParams).length > 0 ? preparedParams : { [k]: v };
 
       return { ...picked, ...currentParam };
@@ -153,7 +235,6 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
     const inSubunits = value => convertUnitToSubUnit(value, unitDivisor(config.currency));
     const values = priceParam ? priceParam.split(',') : [];
     if (!priceParam || values.length !== 2) return {};
-    // URL stores monthly values — convert to nightly for the API
     const nightlyMin = Math.floor(Number(values[0]) / 30);
     const nightlyMax = Math.ceil(Number(values[1]) / 30);
     return {
@@ -170,15 +251,6 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
     const isNightlyMode = dateRangeMode === 'night';
     const isEntireRangeAvailable = availability === 'time-full';
 
-    // SearchPage need to use a single time zone but listings can have different time zones
-    // We need to expand/prolong the time window (start & end) to cover other time zones too.
-    //
-    // NOTE: you might want to consider changing UI so that
-    //   1) location is always asked first before date range
-    //   2) use some 3rd party service to convert location to time zone (IANA tz name)
-    //   3) Make exact dates filtering against that specific time zone
-    //   This setup would be better for dates filter,
-    //   but it enforces a UX where location is always asked first and therefore configurability
     const getProlongedStart = date => subtractTime(date, 14, 'hours', searchTZ);
     const getProlongedEnd = date => addTime(date, 12, 'hours', searchTZ);
 
@@ -188,8 +260,8 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
       hasValues && isNightlyMode
         ? endRaw
         : hasValues
-        ? getExclusiveEndDate(endRaw, searchTZ)
-        : null;
+          ? getExclusiveEndDate(endRaw, searchTZ)
+          : null;
 
     const today = getStartOf(new Date(), 'day', searchTZ);
     const possibleStartDate = subtractTime(today, 14, 'hours', searchTZ);
@@ -202,35 +274,24 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
     const day = 1440;
     const hour = 60;
     const MIN_STAY_DAYS = 30;
-    // Always enforce minimum 30-day stay duration for this platform.
-    // Use the actual searched range if longer than 30 days.
+
     const minDuration = Math.max(dayCount * day - hour, MIN_STAY_DAYS * day - hour);
 
     console.log('Search params sent to API:', {
       dayCount,
       minDuration,
       minDurationInDays: minDuration / 1440,
-      start: getProlongedStart(startDate),
-      end: getProlongedEnd(endDate),
+      start: startDate,
+      end: endDate,
     });
 
-    return hasValidDates
-      ? {
-          start: startDate,
-          end: endDate,
-          availability: 'time-full',
-        }
-      : {};
+
+    return {};
   };
 
   const stockFilters = datesMaybe => {
     const hasDatesFilterInUse = Object.keys(datesMaybe).length > 0;
 
-    // If dates filter is not in use,
-    //   1) Add minStock filter with default value (1)
-    //   2) Add relaxed stockMode: "match-undefined"
-    // The latter is used to filter out all the listings that explicitly are out of stock,
-    // but keeps bookable and inquiry listings.
     return hasDatesFilterInUse ? {} : { minStock: 1, stockMode: 'match-undefined' };
   };
 
@@ -238,29 +299,24 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
     const seatsFilter = config.search.defaultFilters.find(f => f.key === 'seats');
     const hasDatesFilterInUse = Object.keys(datesMaybe).length > 0;
 
-    // Seats filter cannot be applied without dates
     return hasDatesFilterInUse && seatsFilter ? { seats } : {};
   };
 
   const sortSearchParams = (sortParam, hasKeywords) => {
     const sortConfig = config?.search?.sortConfig || {};
-    // If no sort options are set, defaultSort will be undefined
     const defaultSort = sortConfig?.options?.[0]?.key;
     const relevanceEnabled = sortConfig.options?.some(
       option => option.key === sortConfig.relevanceKey
     );
 
-    // User-specified sort takes priority
     if (sortParam !== undefined && sortParam !== sortConfig.relevanceKey) {
       return { sort: sortParam };
     }
 
-    // No sort parameter needed when keyword search is used or sort config is inactive
     if (relevanceEnabled && (hasKeywords || !sortConfig.active)) {
       return {};
     }
 
-    // Fall back to default sort
     return { sort: defaultSort };
   };
 
@@ -275,8 +331,7 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
     isListingTypeVariant,
     ...restOfParams
   } = searchParams;
-  // The params related to default filters are prepared one-by-one
-  // We could consider moving them to the prepareAPIParams function too.
+
   const priceMaybe = priceSearchParams(price);
   const datesMaybe = datesSearchParams(dates);
   const stockMaybe = stockFilters(datesMaybe);
@@ -284,22 +339,9 @@ const searchListingsPayloadCreator = ({ searchParams, config }, thunkAPI) => {
   const sortMaybe = sortSearchParams(sort, searchParams?.keywords !== undefined);
 
   const params = {
-    // The params that are related to listing fields and categories are prepared here.
-    // We add handler functions that check category and integer range configurations.
-    // - With category params, we essentially just omit invalid category names.
-    //   I.e. params that are not part of the currently configured category tree.
-    // - With integer range params, we prepare the property for API.
-    //   I.e. the range end must be exclusive. E.g. 1000,2000 -> 1000,2001
-    // Note: invalid independent search params are still passed through
+
     ...prepareAPIParams(restOfParams, [prepareCategoryParams, prepareIntegerRangeParam]),
-    // If the search page variant is of type /s/:listingType, this sets the pub_listingType
-    // query parameter to the value of the listing type path parameter. The ordering matters here,
-    // since this value overrides any possible pub_listingType value coming from query parameters
-    // i.e. the previous row.
-    //
-    // Only one value is currently supported in pub_listingType – if you want to support e.g.
-    // /s/:listingType?pub_listingType=[otherListingType] => pub_listingType=listingType,otherListingType,
-    // you'll need to customize a logic that merges the query param and path param values.
+
     ...searchValidListingTypes(
       config.listing.listingTypes,
       listingTypePathParam,
@@ -336,7 +378,6 @@ export const searchListings = createAsyncThunk(
   searchListingsPayloadCreator
 );
 
-// ================ Slice ================ //
 
 const searchPageSlice = createSlice({
   name: 'SearchPage',
@@ -354,7 +395,6 @@ const searchPageSlice = createSlice({
     },
   },
   extraReducers: builder => {
-    // Search Listings
     builder
       .addCase(searchListings.pending, (state, action) => {
         state.searchParams = action.meta.arg.searchParams;
@@ -362,12 +402,16 @@ const searchPageSlice = createSlice({
         state.searchListingsError = null;
       })
       .addCase(searchListings.fulfilled, (state, action) => {
-        state.currentPageResultIds = resultIds(action.payload.data);
+        // FIXED: Apply frontend filtering for date overlap
+        const filteredListings = filterListingsByDateOverlap(
+          action.payload.data,
+          state.searchParams
+        );
+        state.currentPageResultIds = resultIds(filteredListings);
         state.pagination = action.payload.data.meta;
         state.searchInProgress = false;
       })
       .addCase(searchListings.rejected, (state, action) => {
-        // eslint-disable-next-line no-console
         console.error(action.payload);
         state.searchInProgress = false;
         state.searchListingsError = action.payload;
@@ -375,15 +419,12 @@ const searchPageSlice = createSlice({
   },
 });
 
-// Export the action creator
 export const { setActiveListing } = searchPageSlice.actions;
 
 export default searchPageSlice.reducer;
 
-// ================ Load data ================ //
 
 export const loadData = (params, search, config) => (dispatch, getState, sdk) => {
-  // In private marketplace mode, this page won't fetch data if the user is unauthorized
   const { listingType: listingTypePathParam } = params || {};
   const state = getState();
   const currentUser = state.user?.currentUser;
@@ -433,8 +474,7 @@ export const loadData = (params, search, config) => (dispatch, getState, sdk) =>
         'publicData.transactionProcessAlias',
         'publicData.unitType',
         'publicData.cardStyle',
-        // These help rendering of 'purchase' listings,
-        // when transitioning from search page to listing page
+
         'publicData.pickupEnabled',
         'publicData.shippingEnabled',
         'publicData.priceVariationsEnabled',
